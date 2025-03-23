@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import "./App.css"
 import Column from "./components/Column"
 import AddColumnModal from "./components/AddColumnModal"
@@ -23,29 +23,68 @@ function App() {
 
   // State for loading
   const [isLoading, setIsLoading] = useState(true)
+  
+  // Use a ref to track if initial data has been loaded
+  const initialDataLoaded = useRef(false)
+
+  // State for mobile view active column
+  const [activeColumnId, setActiveColumnId] = useState(null)
+  
+  // State for tracking viewport width
+  const [isMobile, setIsMobile] = useState(false)
 
   // Initialize with sample data on mount
   useEffect(() => {
-    // Load initial data for each column
+    // Load initial data for each column - only once
     const initialData = async () => {
-      setIsLoading(true)
+      if (!initialDataLoaded.current) {
+        setIsLoading(true)
 
-      const updatedColumns = [...columns]
+        const updatedColumns = [...columns]
 
-      for (let i = 0; i < updatedColumns.length; i++) {
-        const column = updatedColumns[i]
-        // Simulate fetching data for this column type
-        const posts = await simulateNewPosts(column.type, 10)
-        updatedColumns[i] = { ...column, posts }
+        for (let i = 0; i < updatedColumns.length; i++) {
+          const column = updatedColumns[i]
+          // Simulate fetching data for this column type
+          const posts = await simulateNewPosts(column.type, 10)
+          updatedColumns[i] = { ...column, posts }
+        }
+
+        setColumns(updatedColumns)
+        setIsLoading(false)
+        initialDataLoaded.current = true
+        
+        // Set the first column as active on initial load
+        if (updatedColumns.length > 0 && !activeColumnId) {
+          setActiveColumnId(updatedColumns[0].id)
+        }
       }
-
-      setColumns(updatedColumns)
-      setIsLoading(false)
     }
 
     initialData()
+    
+    // Check window size for mobile/desktop view
+    const checkIsMobile = () => {
+      const mobileBreakpoint = 768 // px
+      setIsMobile(window.innerWidth < mobileBreakpoint)
+    }
+    
+    // Run on initial load
+    checkIsMobile()
+    
+    // Add resize listener
+    window.addEventListener('resize', checkIsMobile)
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkIsMobile)
+  }, [])
 
-    // Set up interval for real-time updates
+  // Set up interval for real-time updates - separate effect
+  useEffect(() => {
+    // Skip initial setup until columns are populated
+    if (columns.some(col => col.posts && col.posts.length === 0) && !isLoading) {
+      return
+    }
+    
     const interval = setInterval(() => {
       const updateColumns = async () => {
         const updatedColumns = await Promise.all(
@@ -65,7 +104,7 @@ function App() {
     }, 30000) // Update every 30 seconds
 
     return () => clearInterval(interval)
-  }, [])
+  }, [columns, isLoading])
 
   // Handle adding a new column
   const handleAddColumn = (columnType) => {
@@ -79,8 +118,14 @@ function App() {
 
     // Simulate fetching initial data for the new column
     simulateNewPosts(columnType, 10).then((posts) => {
-      setColumns([...columns, { ...newColumn, posts }])
+      const newColumnWithPosts = { ...newColumn, posts }
+      setColumns([...columns, newColumnWithPosts])
       setIsLoading(false)
+      
+      // Automatically select new column on mobile
+      if (isMobile) {
+        setActiveColumnId(newColumn.id)
+      }
     })
 
     setShowAddModal(false)
@@ -88,6 +133,16 @@ function App() {
 
   // Handle removing a column
   const handleRemoveColumn = (columnId) => {
+    // If removing active column, select another one if available
+    if (activeColumnId === columnId) {
+      const remainingColumns = columns.filter(col => col.id !== columnId)
+      if (remainingColumns.length > 0) {
+        setActiveColumnId(remainingColumns[0].id)
+      } else {
+        setActiveColumnId(null)
+      }
+    }
+    
     setColumns(columns.filter((column) => column.id !== columnId))
   }
 
@@ -134,52 +189,77 @@ function App() {
   const handleSearch = (e) => {
     setSearchTerm(e.target.value)
   }
-
-  console.log("showAddModal:", showAddModal) // Debug log
+  
+  // Handle column change in mobile view
+  const handleColumnChange = (e) => {
+    setActiveColumnId(parseInt(e.target.value, 10))
+  }
 
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="app-container">
         <header className="app-header">
           <h1>Social Media Dashboard</h1>
-          <div className="search-container">
-            <input
-              type="text"
-              placeholder="Search all columns..."
-              value={searchTerm}
-              onChange={handleSearch}
-              className="search-input"
-              aria-label="Search all columns"
-            />
+          <div className="header-controls">
+            <div className="search-container">
+              <input
+                type="text"
+                placeholder="Search columns..."
+                value={searchTerm}
+                onChange={handleSearch}
+                className="search-input"
+                aria-label="Search all columns"
+              />
+            </div>
+            <button
+              className="add-column-btn"
+              onClick={() => setShowAddModal(true)}
+              aria-label="Add new column"
+            >
+              Add Column
+            </button>
           </div>
-          <button
-            className="add-column-btn"
-            onClick={() => {
-              console.log("Add Column button clicked")
-              setShowAddModal(true)
-            }}
-            aria-label="Add new column"
-          >
-            Add Column
-          </button>
         </header>
 
-        <main className="columns-container">
-          {isLoading && columns.length === 0 ? (
+        {/* Mobile view column selector */}
+        {isMobile && columns.length > 0 && (
+          <div className="mobile-column-selector">
+            <select 
+              value={activeColumnId || ''} 
+              onChange={handleColumnChange}
+              className="column-dropdown"
+              aria-label="Select column to display"
+            >
+              {columns.map((column) => (
+                <option key={column.id} value={column.id}>
+                  {column.type}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <main className={`columns-container ${isMobile ? 'mobile-view' : ''}`}>
+          {isLoading && columns.every(col => col.posts.length === 0) ? (
             <div className="loading-spinner">
               <div className="spinner"></div>
             </div>
           ) : (
             columns.map((column, index) => (
-              <Column
-                key={column.id}
-                column={column}
-                index={index}
-                searchTerm={searchTerm}
-                onRemove={handleRemoveColumn}
-                onMove={moveColumn}
-                onInteraction={handlePostInteraction}
-              />
+              <div 
+                key={column.id} 
+                className={`column-wrapper ${isMobile && column.id !== activeColumnId ? 'hidden' : ''}`}
+              >
+                <Column
+                  column={column}
+                  index={index}
+                  searchTerm={searchTerm}
+                  onRemove={handleRemoveColumn}
+                  onMove={moveColumn}
+                  onInteraction={handlePostInteraction}
+                  isMobile={isMobile}
+                />
+              </div>
             ))
           )}
 
@@ -190,10 +270,7 @@ function App() {
 
         {showAddModal && (
           <AddColumnModal
-            onClose={() => {
-              console.log("Modal closed")
-              setShowAddModal(false)
-            }}
+            onClose={() => setShowAddModal(false)}
             onAdd={handleAddColumn}
           />
         )}
@@ -203,4 +280,3 @@ function App() {
 }
 
 export default App
-

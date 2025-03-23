@@ -340,3 +340,103 @@ body {
     margin: 0.5rem 0;
   }
 }
+/* Mobile view styles */
+@media (max-width: 768px) {
+  .columns-container.mobile-view {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .column-wrapper.hidden {
+    display: none;
+  }
+
+  .column-wrapper {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .mobile-column-selector {
+    width: 100%;
+    padding: 10px 15px;
+    background-color: #f5f8fa;
+    border-bottom: 1px solid #e1e8ed;
+  }
+
+  .column-dropdown {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccd6dd;
+    background-color: white;
+    font-size: 14px;
+    color: #14171a;
+  }
+
+  /* Ensure Column components take full width on mobile */
+  .column-wrapper .column {
+    width: 100%;
+    margin: 0;
+  }
+  
+  /* Mobile header optimizations */
+  .app-header {
+    padding: 10px;
+  }
+  
+  .app-header h1 {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  
+  /* Create a row for search and add button */
+  .header-controls {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+  }
+  
+  .search-container {
+    flex: 1;
+    margin-bottom: 0;
+    /* Shift search container up by 2px */
+    position: relative;
+    top: -6px;
+  }
+  
+  .search-input {
+    font-size: 14px;
+    padding: 6px 10px;
+    height: 36px;
+  }
+  
+  .add-column-btn {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 769px) {
+  .app-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .app-header h1 {
+    margin-bottom: 0;
+    margin-right: 15px;
+  }
+  
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .search-container {
+    margin-bottom: 0;
+  }
+}
